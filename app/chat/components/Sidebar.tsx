@@ -1,0 +1,56 @@
+"use client";
+
+import { Plus, MessageSquare } from "lucide-react";
+
+interface Conversation {
+  id: string;
+  title: string;
+  date: string;
+}
+
+interface SidebarProps {
+  conversations: Conversation[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+  onNewChat: () => void;
+}
+
+export default function Sidebar({
+  conversations,
+  activeId,
+  onSelect,
+  onNewChat,
+}: SidebarProps) {
+  return (
+    <aside className="w-80 flex-shrink-0 flex flex-col bg-[#1e1f20]">
+      {/* 새 대화 버튼 */}
+      <div className="p-3">
+        <button
+          onClick={onNewChat}
+          className="flex w-full items-center gap-2 rounded-lg border border-[#383a3e] px-3 py-2.5 text-sm text-[#e3e3e3] transition-colors hover:bg-[#2a2b2e] cursor-pointer"
+        >
+          <Plus size={16} />
+          새 대화
+        </button>
+      </div>
+
+      {/* 대화 목록 */}
+      <nav className="flex-1 overflow-y-auto px-2 pb-3">
+        {conversations.map((conv) => (
+          <button
+            key={conv.id}
+            onClick={() => onSelect(conv.id)}
+            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors cursor-pointer mb-0.5 ${
+              activeId === conv.id
+                ? "bg-[#2a2b2e] text-[#e3e3e3]"
+                : "text-[#9aa0a6] hover:bg-[#262729] hover:text-[#e3e3e3]"
+            }`}
+          >
+            <MessageSquare size={14} className="flex-shrink-0" />
+            <span className="truncate">{conv.title}</span>
+          </button>
+        ))}
+      </nav>
+    </aside>
+  );
+}
