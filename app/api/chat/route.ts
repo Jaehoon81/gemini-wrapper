@@ -22,7 +22,20 @@ export async function POST(request: Request) {
     history: history as never,
   });
 
-  const stream = await chat.sendMessageStream({ message: currentMessage });
+  let stream;
+  try {
+    stream = await chat.sendMessageStream({ message: currentMessage });
+  } catch (error: unknown) {
+    const status = (error as { status?: number }).status ?? 500;
+    const msg =
+      status === 429
+        ? "API 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요."
+        : "Gemini API 오류가 발생했습니다.";
+    return new Response(JSON.stringify({ error: msg }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   // ReadableStream으로 스트리밍 응답 반환
   const encoder = new TextEncoder();

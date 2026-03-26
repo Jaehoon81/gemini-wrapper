@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useAuth } from "../components/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
+import {
+  fetchConversations,
+  fetchMessages,
+  createConversation,
+  saveMessage,
+  deleteConversation,
+} from "@/lib/supabase/db";
 import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import ChatMessages from "./components/ChatMessages";
@@ -33,6 +40,8 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [remainingCount, setRemainingCount] = useState(50);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // stale closure 방지용 ref
   const conversationsRef = useRef(conversations);
@@ -41,15 +50,71 @@ export default function ChatPage() {
   const activeConv = conversations.find((c) => c.id === activeConvId);
   const messages = activeConv?.messages ?? [];
 
+  // 초기 대화 목록 로드
+  useEffect(() => {
+    if (!user) return;
+    fetchConversations(user.id).then((data) => {
+      setConversations(
+        data.map((c) => ({
+          id: c.id,
+          title: c.title,
+          date: new Date(c.created_at).toLocaleDateString("ko-KR"),
+          messages: [],
+        }))
+      );
+    });
+  }, [user]);
+
+  // 대화 선택 시 메시지 로드
+  const handleSelect = useCallback(
+    async (id: string) => {
+      setActiveConvId(id);
+
+      // 이미 메시지가 로드된 대화는 다시 로드하지 않음
+      const conv = conversationsRef.current.find((c) => c.id === id);
+      if (conv && conv.messages.length > 0) return;
+
+      setLoadingMessages(true);
+      try {
+        const data = await fetchMessages(id);
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  messages: data.map((m) => ({
+                    role: m.role,
+                    content: m.content,
+                  })),
+                }
+              : c
+          )
+        );
+      } finally {
+        setLoadingMessages(false);
+      }
+    },
+    []
+  );
+
   // 새 대화 생성
   const handleNewChat = useCallback(() => {
-    const id = crypto.randomUUID();
-    setConversations((prev) => [
-      { id, title: "새 대화", date: "방금", messages: [] },
-      ...prev,
-    ]);
-    setActiveConvId(id);
+    setActiveConvId(null);
   }, []);
+
+  // 대화 삭제 확인 팝업 열기
+  const handleDeleteRequest = useCallback((id: string) => {
+    setDeleteTargetId(id);
+  }, []);
+
+  // 대화 삭제 확정 (소프트 삭제)
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTargetId) return;
+    await deleteConversation(deleteTargetId);
+    setConversations((prev) => prev.filter((c) => c.id !== deleteTargetId));
+    if (activeConvId === deleteTargetId) setActiveConvId(null);
+    setDeleteTargetId(null);
+  }, [deleteTargetId, activeConvId]);
 
   // 메시지 전송 + Gemini 스트리밍 응답
   const handleSend = useCallback(
@@ -61,21 +126,26 @@ export default function ChatPage() {
       }
 
       let convId = activeConvId;
+      const title =
+        content.length > 20 ? content.slice(0, 20) + "..." : content;
 
-      // 활성 대화가 없으면 자동 생성
+      const userMsg: Message = { role: "user", content };
+      const assistantMsg: Message = { role: "assistant", content: "" };
+
+      // 활성 대화가 없으면 DB에 새 대화 생성
       if (!convId) {
         convId = crypto.randomUUID();
-        const title =
-          content.length > 20 ? content.slice(0, 20) + "..." : content;
+        try {
+          await createConversation(convId, user!.id, title);
+        } catch (e) {
+          console.error("[DB] 대화 생성 실패:", e);
+        }
         setConversations((prev) => [
           { id: convId!, title, date: "방금", messages: [] },
           ...prev,
         ]);
         setActiveConvId(convId);
       }
-
-      const userMsg: Message = { role: "user", content };
-      const assistantMsg: Message = { role: "assistant", content: "" };
 
       // 현재 대화의 기존 메시지를 ref에서 읽어서 API 전송용으로 준비
       const currentConv = conversationsRef.current.find(
@@ -90,17 +160,18 @@ export default function ChatPage() {
           return {
             ...c,
             title:
-              c.messages.length === 0
-                ? content.length > 20
-                  ? content.slice(0, 20) + "..."
-                  : content
-                : c.title,
+              c.messages.length === 0 ? title : c.title,
             messages: [...c.messages, userMsg, assistantMsg],
           };
         })
       );
 
       setIsStreaming(true);
+
+      // DB에 사용자 메시지 저장 (비동기, 스트리밍 차단하지 않음)
+      saveMessage(convId, "user", content).catch((e) =>
+        console.error("[DB] 사용자 메시지 저장 실패:", e)
+      );
 
       try {
         const response = await fetch("/api/chat", {
@@ -110,17 +181,24 @@ export default function ChatPage() {
         });
 
         if (!response.ok || !response.body) {
-          throw new Error("API 응답 오류");
+          let errMsg = "API 응답 오류";
+          try {
+            const body = await response.json();
+            if (body.error) errMsg = body.error;
+          } catch {}
+          throw new Error(errMsg);
         }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let fullResponse = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           const text = decoder.decode(value, { stream: true });
+          fullResponse += text;
 
           setConversations((prev) =>
             prev.map((c) => {
@@ -138,9 +216,15 @@ export default function ChatPage() {
           );
         }
 
+        // 스트리밍 완료 후 assistant 메시지 DB 저장
+        saveMessage(convId, "assistant", fullResponse).catch((e) =>
+          console.error("[DB] assistant 메시지 저장 실패:", e)
+        );
+
         // 응답 성공 시 1회 차감
         setRemainingCount((prev) => Math.max(0, prev - 1));
       } catch (error) {
+        console.error("[Chat] 응답 오류:", error);
         setConversations((prev) =>
           prev.map((c) => {
             if (c.id !== convId) return c;
@@ -150,7 +234,8 @@ export default function ChatPage() {
               msgs[msgs.length - 1] = {
                 ...last,
                 content:
-                  last.content || "응답을 가져오지 못했습니다. 다시 시도해주세요.",
+                  last.content ||
+                  (error instanceof Error ? error.message : "응답을 가져오지 못했습니다. 다시 시도해주세요."),
               };
             }
             return { ...c, messages: msgs };
@@ -160,7 +245,7 @@ export default function ChatPage() {
         setIsStreaming(false);
       }
     },
-    [activeConvId, remainingCount]
+    [activeConvId, remainingCount, user]
   );
 
   const handleLogout = async () => {
@@ -220,16 +305,50 @@ export default function ChatPage() {
         </div>
       )}
 
+      {/* 대화 삭제 확인 팝업 */}
+      {deleteTargetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-[#1e1f20] border border-[#3f3f46] p-6 text-center shadow-xl">
+            <div className="text-3xl mb-3">🗑️</div>
+            <h3 className="text-lg font-semibold text-[#fafafa] mb-2">
+              대화를 삭제하시겠습니까?
+            </h3>
+            <p className="text-sm text-[#a1a1aa] mb-5 leading-relaxed">
+              삭제된 대화는 목록에서 사라집니다.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="rounded-lg border border-[#3f3f46] px-6 py-2 text-sm font-medium text-[#a1a1aa] transition-colors hover:bg-[#27272a] cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="rounded-lg bg-[#fafafa] px-6 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:bg-[#e4e4e7] cursor-pointer"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 본문: 사이드바 + 메인 */}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           conversations={conversations}
           activeId={activeConvId}
-          onSelect={setActiveConvId}
+          onSelect={handleSelect}
           onNewChat={handleNewChat}
+          onDelete={handleDeleteRequest}
         />
         <main className="flex flex-1 flex-col overflow-hidden">
-          <ChatMessages messages={messages} isStreaming={isStreaming} />
+          <ChatMessages
+            messages={messages}
+            isStreaming={isStreaming}
+            loading={loadingMessages}
+          />
           <ChatInput
             onSubmit={handleSend}
             disabled={isStreaming}

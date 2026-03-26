@@ -10,17 +10,28 @@ interface Message {
 interface ChatMessagesProps {
   messages: Message[];
   isStreaming: boolean;
+  loading?: boolean;
 }
 
 export default function ChatMessages({
   messages,
   isStreaming,
+  loading,
 }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
+
+  // 메시지 로딩 중
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-sm text-[#a1a1aa] animate-pulse">메시지 불러오는 중...</p>
+      </div>
+    );
+  }
 
   // 빈 상태
   if (messages.length === 0) {
