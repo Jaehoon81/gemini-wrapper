@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSubscription, getUsage } from "@/lib/supabase/db";
+import { getSubscription, getUsage } from "@/lib/supabase/db-server";
 import { PLANS } from "@/lib/plans";
 
 export async function GET() {

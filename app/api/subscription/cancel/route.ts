@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSubscription } from "@/lib/supabase/db";
+import { getSubscription } from "@/lib/supabase/db-server";
 import { polar } from "@/lib/polar";
 
 export async function POST() {

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSubscription } from "@/lib/supabase/db";
+import { getSubscription } from "@/lib/supabase/db-server";
 
 export async function GET() {
   const supabase = await createClient();
