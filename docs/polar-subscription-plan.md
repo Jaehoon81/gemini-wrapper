@@ -330,9 +330,9 @@ SUPABASE_SERVICE_ROLE_KEY=...
 GEMINI_API_KEY=...
 
 # 이미 설정됨
-POLAR_PRO_PRODUCT_ID=your-pro-product-id
-POLAR_UNLIMITED_PRODUCT_ID=your-unlimited-product-id
-POLAR_ACCESS_TOKEN=your-polar-access-token
+POLAR_PRO_PRODUCT_ID=<your-pro-product-id>
+POLAR_UNLIMITED_PRODUCT_ID=<your-unlimited-product-id>
+POLAR_ACCESS_TOKEN=<your-polar-access-token>
 
 # 추가 필요 (Polar 대시보드에서 webhook 등록 후)
 POLAR_WEBHOOK_SECRET=...
