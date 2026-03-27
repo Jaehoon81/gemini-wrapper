@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+.playwright-mcp/
+login-check.png
 
 # debug
 npm-debug.log*
