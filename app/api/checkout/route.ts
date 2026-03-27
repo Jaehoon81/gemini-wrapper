@@ -22,15 +22,31 @@ export async function POST(request: Request) {
 
   const sub = await getSubscription(user.id);
 
+  // 이미 유료 구독 중이면 → Polar API로 플랜 변경 (Checkout 불필요)
+  if (sub.polar_subscription_id && sub.plan !== "free") {
+    try {
+      await polar.subscriptions.update({
+        id: sub.polar_subscription_id,
+        subscriptionUpdate: {
+          productId: planConfig.productId,
+        },
+      });
+      return Response.json({ updated: true });
+    } catch (error) {
+      console.error("[Checkout] 구독 업데이트 실패:", error);
+      return Response.json(
+        { error: "플랜 변경에 실패했습니다." },
+        { status: 500 }
+      );
+    }
+  }
+
+  // 신규 결제 → Polar Checkout
   const checkout = await polar.checkouts.create({
     products: [planConfig.productId],
     successUrl: `${request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL}/chat?checkout=success`,
     customerEmail: user.email!,
     metadata: { user_id: user.id },
-    // 기존 구독이 있으면 업그레이드 (중복 구독 방지)
-    ...(sub.polar_subscription_id
-      ? { subscriptionId: sub.polar_subscription_id }
-      : {}),
   });
 
   return Response.json({ url: checkout.url });

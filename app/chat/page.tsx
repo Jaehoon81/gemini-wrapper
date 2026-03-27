@@ -68,10 +68,19 @@ export default function ChatPage() {
       }));
       setConversations(convs);
 
-      // localStorage에서 마지막 대화 복원
+      // localStorage에서 마지막 대화 복원 + 메시지 로드
       const lastId = localStorage.getItem("lastActiveConvId");
       if (lastId && convs.some((c) => c.id === lastId)) {
         setActiveConvId(lastId);
+        fetchMessages(lastId).then((msgs) => {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === lastId
+                ? { ...c, messages: msgs.map((m) => ({ role: m.role, content: m.content })) }
+                : c
+            )
+          );
+        });
       }
     });
   }, [user]);

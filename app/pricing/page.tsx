@@ -91,8 +91,14 @@ export default function PricingPage() {
         body: JSON.stringify({ plan: planKey }),
       });
       const data = await res.json();
-      if (data.url) {
+      if (data.updated) {
+        // 기존 구독 플랜 변경 완료
+        setCurrentPlan(planKey);
+        alert("플랜이 변경되었습니다.");
+      } else if (data.url) {
         window.location.href = data.url;
+      } else if (data.error) {
+        alert(data.error);
       }
     } catch {
       alert("결제 페이지로 이동하지 못했습니다.");
