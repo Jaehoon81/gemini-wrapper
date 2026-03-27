@@ -1,5 +1,89 @@
 import "server-only";
 import { supabaseAdmin } from "./admin";
+import { encrypt, hashForLookup, tryDecrypt } from "@/lib/encryption";
+
+// ===== 프로필 (암호화) =====
+
+/** 프로필 저장 (암호화 후 upsert) */
+export async function upsertProfile(
+  userId: string,
+  email: string | null,
+  fullName: string | null
+): Promise<void> {
+  const updateData: Record<string, string> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (email) {
+    updateData.email = encrypt(email);
+    updateData.email_hash = hashForLookup(email.toLowerCase());
+  }
+  if (fullName) {
+    updateData.full_name = encrypt(fullName);
+    updateData.full_name_hash = hashForLookup(fullName.toLowerCase());
+  }
+
+  const { error } = await supabaseAdmin
+    .from("profiles")
+    .update(updateData)
+    .eq("id", userId);
+
+  if (error) throw error;
+}
+
+/** 프로필 조회 (복호화 포함) */
+export async function getProfile(
+  userId: string
+): Promise<{ email: string | null; fullName: string | null } | null> {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("email, full_name")
+    .eq("id", userId)
+    .single();
+
+  if (error?.code === "PGRST116") return null;
+  if (error) throw error;
+
+  return {
+    email: data.email ? tryDecrypt(data.email) : null,
+    fullName: data.full_name ? tryDecrypt(data.full_name) : null,
+  };
+}
+
+/** 이메일 해시로 프로필 검색 */
+export async function findProfileByEmail(
+  email: string
+): Promise<string | null> {
+  const hash = hashForLookup(email.toLowerCase());
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("email_hash", hash)
+    .single();
+
+  if (error?.code === "PGRST116") return null;
+  if (error) throw error;
+  return data.id;
+}
+
+/** 활동 로그 기록 (IP 암호화) */
+export async function logActivity(
+  userId: string,
+  action: string,
+  ipAddress?: string | null,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("user_activity_logs")
+    .insert({
+      user_id: userId,
+      action,
+      ip_address: ipAddress ? encrypt(ipAddress) : null,
+      metadata: metadata || {},
+    });
+
+  if (error) throw error;
+}
 
 // ===== TYPES =====
 

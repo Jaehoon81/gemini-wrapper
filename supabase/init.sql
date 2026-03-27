@@ -81,6 +81,10 @@ RETURNS trigger AS $$
 BEGIN
   INSERT INTO public.subscriptions (user_id, plan, status)
   VALUES (NEW.id, 'free', 'active');
+
+  INSERT INTO public.profiles (id)
+  VALUES (NEW.id);
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -100,3 +104,41 @@ BEGIN
   DO UPDATE SET count = usage.count + 1, updated_at = now();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ===== 프로필 (앱 레벨 암호화) =====
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,             -- AES-256-GCM 암호화된 값
+  email_hash TEXT,        -- HMAC-SHA256 해시 (검색용)
+  full_name TEXT,         -- AES-256-GCM 암호화된 값
+  full_name_hash TEXT,    -- HMAC-SHA256 해시 (검색용)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_email_hash ON profiles(email_hash);
+CREATE INDEX IF NOT EXISTS idx_profiles_full_name_hash ON profiles(full_name_hash);
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "profiles_select_own" ON profiles;
+CREATE POLICY "profiles_select_own" ON profiles
+  FOR SELECT USING (auth.uid() = id);
+
+-- ===== 활동 로그 =====
+
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  action TEXT NOT NULL,
+  ip_address TEXT,        -- AES-256-GCM 암호화된 값
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE user_activity_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "activity_logs_select_own" ON user_activity_logs;
+CREATE POLICY "activity_logs_select_own" ON user_activity_logs
+  FOR SELECT USING (auth.uid() = user_id);
