@@ -56,20 +56,32 @@ export default function ChatPage() {
   const remaining = isUnlimited ? Infinity : usage.limit - usage.count;
   const usagePercent = isUnlimited ? 0 : Math.round((usage.count / usage.limit) * 100);
 
-  // 초기 대화 목록 로드
+  // 초기 대화 목록 로드 + 마지막 대화 자동 선택
   useEffect(() => {
     if (!user) return;
     fetchConversations(user.id).then((data) => {
-      setConversations(
-        data.map((c) => ({
-          id: c.id,
-          title: c.title,
-          date: new Date(c.created_at).toLocaleDateString("ko-KR"),
-          messages: [],
-        }))
-      );
+      const convs = data.map((c) => ({
+        id: c.id,
+        title: c.title,
+        date: new Date(c.created_at).toLocaleDateString("ko-KR"),
+        messages: [],
+      }));
+      setConversations(convs);
+
+      // localStorage에서 마지막 대화 복원
+      const lastId = localStorage.getItem("lastActiveConvId");
+      if (lastId && convs.some((c) => c.id === lastId)) {
+        setActiveConvId(lastId);
+      }
     });
   }, [user]);
+
+  // activeConvId 변경 시 localStorage에 저장
+  useEffect(() => {
+    if (activeConvId) {
+      localStorage.setItem("lastActiveConvId", activeConvId);
+    }
+  }, [activeConvId]);
 
   // 대화 선택 시 메시지 로드
   const handleSelect = useCallback(

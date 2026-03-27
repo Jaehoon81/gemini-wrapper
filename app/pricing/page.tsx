@@ -129,7 +129,7 @@ export default function PricingPage() {
             return (
               <div
                 key={plan.key}
-                className={`relative rounded-2xl border p-6 transition-all duration-300 ${
+                className={`relative rounded-2xl border p-6 transition-all duration-300 flex flex-col ${
                   plan.highlighted
                     ? "border-white/15 bg-white/[0.03] scale-[1.02] shadow-xl"
                     : "border-[#27272a] hover:border-white/10"
@@ -167,7 +167,7 @@ export default function PricingPage() {
                 </div>
 
                 {/* 기능 목록 */}
-                <div className="space-y-3 mb-6">
+                <div className="space-y-3 mb-6 flex-1">
                   {plan.features.map((feature, i) => (
                     <div key={i} className="flex items-center gap-2.5">
                       <Check className="h-4 w-4 text-white/30 flex-shrink-0" />
@@ -176,34 +176,32 @@ export default function PricingPage() {
                   ))}
                 </div>
 
-                {/* CTA 버튼 */}
-                {isCurrent ? (
-                  <button
-                    disabled
-                    className="w-full py-2.5 px-4 rounded-xl text-sm font-medium border border-white/10 text-[#a1a1aa] cursor-default"
-                  >
-                    현재 플랜
-                  </button>
-                ) : isUpgradable && plan.hasPaid ? (
-                  <button
-                    onClick={() => handleUpgrade(plan.key)}
-                    disabled={isLoading}
-                    className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
-                      plan.highlighted
-                        ? "bg-white text-black hover:bg-white/90"
-                        : "border border-white/10 text-white hover:bg-white/[0.05]"
-                    } disabled:opacity-50`}
-                  >
-                    {isLoading ? "이동 중..." : "업그레이드"}
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    className="w-full py-2.5 px-4 rounded-xl text-sm font-medium border border-white/10 text-[#71717a] cursor-default"
-                  >
-                    {plan.key === "free" ? "무료" : "업그레이드"}
-                  </button>
-                )}
+                {/* CTA 버튼 — 하단 고정 */}
+                <div className="mt-auto">
+                  {isCurrent ? (
+                    <button
+                      disabled
+                      className="w-full py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 cursor-default"
+                    >
+                      현재 플랜
+                    </button>
+                  ) : isUpgradable && plan.hasPaid ? (
+                    <button
+                      onClick={() => handleUpgrade(plan.key)}
+                      disabled={isLoading}
+                      className="w-full py-2.5 px-4 rounded-xl text-sm font-medium bg-white text-black hover:bg-white/90 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isLoading ? "이동 중..." : "업그레이드"}
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="w-full py-2.5 px-4 rounded-xl text-sm font-medium border border-[#3f3f46] text-[#52525b] cursor-default"
+                    >
+                      {plan.key === "free" ? "무료" : "업그레이드"}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
