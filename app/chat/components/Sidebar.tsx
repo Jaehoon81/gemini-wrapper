@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, MessageSquare, Trash2 } from "lucide-react";
+import { Plus, MessageSquare, Trash2, CreditCard } from "lucide-react";
 
 interface Conversation {
   id: string;
@@ -75,6 +75,17 @@ export default function Sidebar({
           </div>
         ))}
       </nav>
+
+      {/* 하단 메뉴 */}
+      <div className="border-t border-[#383a3e] p-3">
+        <a
+          href="/billing"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#9aa0a6] hover:bg-[#262729] hover:text-[#e3e3e3] transition-colors"
+        >
+          <CreditCard size={14} />
+          Billing
+        </a>
+      </div>
     </aside>
   );
 }

@@ -28,8 +28,14 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Webhook은 인증 체크 제외 (Polar 서버에서 호출)
+  if (request.nextUrl.pathname.startsWith("/api/webhooks/")) {
+    return supabaseResponse;
+  }
+
   // 미인증 사용자 → /login 리다이렉트
-  if (!user && request.nextUrl.pathname.startsWith("/chat")) {
+  const pathname = request.nextUrl.pathname;
+  if (!user && (pathname.startsWith("/chat") || pathname.startsWith("/billing"))) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

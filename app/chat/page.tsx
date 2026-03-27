@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useAuth } from "../components/AuthProvider";
+import { useSubscription } from "../components/SubscriptionProvider";
 import { createClient } from "@/lib/supabase/client";
 import {
   fetchConversations,
@@ -33,12 +34,12 @@ interface Conversation {
 
 export default function ChatPage() {
   const { user, loading } = useAuth();
+  const { plan, usage, refreshUsage } = useSubscription();
   const router = useRouter();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [remainingCount, setRemainingCount] = useState(50);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -49,6 +50,11 @@ export default function ChatPage() {
 
   const activeConv = conversations.find((c) => c.id === activeConvId);
   const messages = activeConv?.messages ?? [];
+
+  // 사용량 계산
+  const isUnlimited = plan === "unlimited";
+  const remaining = isUnlimited ? Infinity : usage.limit - usage.count;
+  const usagePercent = isUnlimited ? 0 : Math.round((usage.count / usage.limit) * 100);
 
   // 초기 대화 목록 로드
   useEffect(() => {
@@ -70,7 +76,6 @@ export default function ChatPage() {
     async (id: string) => {
       setActiveConvId(id);
 
-      // 이미 메시지가 로드된 대화는 다시 로드하지 않음
       const conv = conversationsRef.current.find((c) => c.id === id);
       if (conv && conv.messages.length > 0) return;
 
@@ -120,7 +125,7 @@ export default function ChatPage() {
   const handleSend = useCallback(
     async (content: string) => {
       // 잔여 횟수 체크
-      if (remainingCount <= 0) {
+      if (!isUnlimited && remaining <= 0) {
         setShowLimitModal(true);
         return;
       }
@@ -185,6 +190,10 @@ export default function ChatPage() {
           try {
             const body = await response.json();
             if (body.error) errMsg = body.error;
+            // 한도 초과 시 모달 표시
+            if (response.status === 429) {
+              setShowLimitModal(true);
+            }
           } catch {}
           throw new Error(errMsg);
         }
@@ -221,8 +230,8 @@ export default function ChatPage() {
           console.error("[DB] assistant 메시지 저장 실패:", e)
         );
 
-        // 응답 성공 시 1회 차감
-        setRemainingCount((prev) => Math.max(0, prev - 1));
+        // 사용량 클라이언트 갱신
+        refreshUsage();
       } catch (error) {
         console.error("[Chat] 응답 오류:", error);
         setConversations((prev) =>
@@ -245,7 +254,7 @@ export default function ChatPage() {
         setIsStreaming(false);
       }
     },
-    [activeConvId, remainingCount, user]
+    [activeConvId, isUnlimited, remaining, user, refreshUsage]
   );
 
   const handleLogout = async () => {
@@ -270,9 +279,29 @@ export default function ChatPage() {
           Gemini Wrapper
         </span>
         <div className="flex items-center gap-4">
-          <span className="text-xs text-[#a1a1aa] border border-[#27272a] rounded-md px-2.5 py-1">
-            {remainingCount}회 남음
-          </span>
+          {/* 사용량 표시 */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#a1a1aa] border border-[#27272a] rounded-md px-2.5 py-1">
+              {isUnlimited
+                ? "무제한"
+                : `${usage.count}/${usage.limit}회 사용`}
+            </span>
+            {/* 프로그레스바 */}
+            {!isUnlimited && (
+              <div className="w-16 h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    usagePercent >= 100
+                      ? "bg-red-500"
+                      : usagePercent >= 80
+                        ? "bg-yellow-500"
+                        : "bg-white/40"
+                  }`}
+                  style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
           <span className="text-sm text-[#a1a1aa]">{user?.email}</span>
           <button
             onClick={handleLogout}
@@ -283,6 +312,18 @@ export default function ChatPage() {
         </div>
       </header>
 
+      {/* 80% 경고 배너 */}
+      {!isUnlimited && usagePercent >= 80 && usagePercent < 100 && (
+        <div className="bg-yellow-500/10 border-b border-yellow-500/20 px-6 py-2 text-center">
+          <span className="text-xs text-yellow-400">
+            이번 달 사용량의 {usagePercent}%를 사용했습니다.{" "}
+            <a href="/pricing" className="underline hover:text-yellow-300">
+              플랜 업그레이드
+            </a>
+          </span>
+        </div>
+      )}
+
       {/* 사용 횟수 초과 팝업 */}
       {showLimitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -292,15 +333,23 @@ export default function ChatPage() {
               사용 횟수를 모두 소진했습니다
             </h3>
             <p className="text-sm text-[#a1a1aa] mb-5 leading-relaxed">
-              무료 사용 횟수가 모두 소진되었습니다.<br />
-              비용 등급을 조정해보세요.
+              이번 달 {plan === "free" ? "무료" : plan.toUpperCase()} 플랜의
+              사용 횟수({usage.limit}회)를 모두 사용했습니다.
             </p>
-            <button
-              onClick={() => setShowLimitModal(false)}
-              className="rounded-lg bg-[#fafafa] px-6 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:bg-[#e4e4e7] cursor-pointer"
-            >
-              확인
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowLimitModal(false)}
+                className="rounded-lg border border-[#3f3f46] px-6 py-2 text-sm font-medium text-[#a1a1aa] transition-colors hover:bg-[#27272a] cursor-pointer"
+              >
+                닫기
+              </button>
+              <a
+                href="/pricing"
+                className="rounded-lg bg-[#fafafa] px-6 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:bg-[#e4e4e7]"
+              >
+                플랜 업그레이드
+              </a>
+            </div>
           </div>
         </div>
       )}
