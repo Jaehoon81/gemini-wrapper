@@ -28,6 +28,11 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 인증 콜백은 미들웨어 간섭 방지 (PKCE 쿠키 보존)
+  if (request.nextUrl.pathname.startsWith("/auth/callback")) {
+    return supabaseResponse;
+  }
+
   // Webhook은 인증 체크 제외 (Polar 서버에서 호출)
   if (request.nextUrl.pathname.startsWith("/api/webhooks/")) {
     return supabaseResponse;
