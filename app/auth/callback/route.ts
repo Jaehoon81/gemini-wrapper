@@ -12,8 +12,13 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
+    // 디버그: 에러 내용을 URL에 포함
+    console.error("[Auth Callback] exchangeCodeForSession 실패:", error.message);
+    return NextResponse.redirect(
+      `${origin}/login?error=auth&message=${encodeURIComponent(error.message)}`
+    );
   }
 
-  // 에러 시 로그인 페이지로 리다이렉트
-  return NextResponse.redirect(`${origin}/login?error=auth`);
+  console.error("[Auth Callback] code 파라미터 없음");
+  return NextResponse.redirect(`${origin}/login?error=auth&message=no_code`);
 }
