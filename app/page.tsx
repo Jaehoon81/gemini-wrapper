@@ -280,7 +280,7 @@ export default function Home() {
   .nav-link { font-size: 12px; height: 32px; line-height: 32px; padding: 0 12px; }
   .kicker { font-size: 11px; margin-bottom: 10px; }
   .subtitle { font-size: 13px; padding: 0 20px; }
-  .bottom { padding: 20px 16px; gap: 4px; }
+  .bottom { padding: 20px 16px 40px; gap: 4px; }
   .bottom .tag { font-size: 10px; }
   .bottom .heading { font-size: 14px; }
 }

@@ -69,8 +69,8 @@ export default function Sidebar({
               <span className="truncate pr-6">{conv.title}</span>
             </button>
 
-            {/* 삭제 버튼 */}
-            {hoveredId === conv.id && (
+            {/* 삭제 버튼: 데스크톱은 hover, 모바일은 활성 대화에 항상 표시 */}
+            {(hoveredId === conv.id || activeId === conv.id) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
