@@ -43,6 +43,7 @@ export default function ChatPage() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // stale closure 방지용 ref
   const conversationsRef = useRef(conversations);
@@ -295,21 +296,33 @@ export default function ChatPage() {
   return (
     <div className="fixed inset-0 flex flex-col bg-[#0a0a0a] text-[#fafafa]">
       {/* 헤더 */}
-      <header className="flex items-center justify-between border-b border-[#3f3f46] px-6 py-3">
-        <span className="text-sm tracking-[0.06em] uppercase text-[#a1a1aa]">
-          Gemini Wrapper
-        </span>
-        <div className="flex items-center gap-4">
+      <header className="flex items-center justify-between border-b border-[#3f3f46] px-3 sm:px-6 py-3">
+        <div className="flex items-center gap-2">
+          {/* 모바일 사이드바 토글 */}
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="md:hidden p-1.5 rounded-lg hover:bg-[#1a1a1a] text-[#a1a1aa] cursor-pointer"
+            aria-label="사이드바 토글"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
+          <span className="text-sm tracking-[0.06em] uppercase text-[#a1a1aa] hidden sm:inline">
+            Gemini Wrapper
+          </span>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* 사용량 표시 */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#a1a1aa] border border-[#27272a] rounded-md px-2.5 py-1">
+            <span className="text-xs text-[#a1a1aa] border border-[#27272a] rounded-md px-2 sm:px-2.5 py-1">
               {isUnlimited
                 ? "무제한"
-                : `${usage.count}/${usage.limit}회 사용`}
+                : `${usage.count}/${usage.limit}회`}
             </span>
             {/* 프로그레스바 */}
             {!isUnlimited && (
-              <div className="w-16 h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+              <div className="w-12 sm:w-16 h-1.5 bg-[#27272a] rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${
                     usagePercent >= 100
@@ -323,10 +336,10 @@ export default function ChatPage() {
               </div>
             )}
           </div>
-          <span className="text-sm text-[#a1a1aa]">{user?.email}</span>
+          <span className="text-sm text-[#a1a1aa] hidden sm:inline">{user?.email}</span>
           <button
             onClick={handleLogout}
-            className="rounded-lg border border-[#27272a] bg-[#111] px-4 py-1.5 text-xs font-medium transition-colors hover:bg-[#1a1a1a] cursor-pointer"
+            className="rounded-lg border border-[#27272a] bg-[#111] px-3 sm:px-4 py-1.5 text-xs font-medium transition-colors hover:bg-[#1a1a1a] cursor-pointer"
           >
             로그아웃
           </button>
@@ -347,7 +360,7 @@ export default function ChatPage() {
 
       {/* 사용 횟수 초과 팝업 */}
       {showLimitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm rounded-2xl bg-[#1e1f20] border border-[#3f3f46] p-6 text-center shadow-xl">
             <div className="text-3xl mb-3">⚡</div>
             <h3 className="text-lg font-semibold text-[#fafafa] mb-2">
@@ -377,7 +390,7 @@ export default function ChatPage() {
 
       {/* 대화 삭제 확인 팝업 */}
       {deleteTargetId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm rounded-2xl bg-[#1e1f20] border border-[#3f3f46] p-6 text-center shadow-xl">
             <div className="text-3xl mb-3">🗑️</div>
             <h3 className="text-lg font-semibold text-[#fafafa] mb-2">
@@ -405,14 +418,34 @@ export default function ChatPage() {
       )}
 
       {/* 본문: 사이드바 + 메인 */}
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          conversations={conversations}
-          activeId={activeConvId}
-          onSelect={handleSelect}
-          onNewChat={handleNewChat}
-          onDelete={handleDeleteRequest}
-        />
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* 모바일 오버레이 */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-black/50 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        <div
+          className={`fixed inset-y-0 left-0 z-40 w-72 transform transition-transform duration-200 ease-out md:static md:w-80 md:translate-x-0 md:z-auto ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <Sidebar
+            conversations={conversations}
+            activeId={activeConvId}
+            onSelect={(id) => {
+              handleSelect(id);
+              setSidebarOpen(false);
+            }}
+            onNewChat={() => {
+              handleNewChat();
+              setSidebarOpen(false);
+            }}
+            onDelete={handleDeleteRequest}
+            userEmail={user?.email}
+          />
+        </div>
         <main className="flex flex-1 flex-col overflow-hidden">
           <ChatMessages
             messages={messages}

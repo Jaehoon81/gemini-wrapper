@@ -268,14 +268,21 @@ export default function Home() {
   text-transform: uppercase;
 }
 .bottom .heading {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--fg);
 }
-.bottom .desc {
-  font-size: 14px;
-  color: var(--muted);
-  max-width: 680px;
+
+/* 모바일 반응형 */
+@media (max-width: 640px) {
+  .header { padding: 16px 16px; }
+  .brand { font-size: 12px; }
+  .nav-link { font-size: 12px; height: 32px; line-height: 32px; padding: 0 12px; }
+  .kicker { font-size: 11px; margin-bottom: 10px; }
+  .subtitle { font-size: 13px; padding: 0 20px; }
+  .bottom { padding: 20px 16px; gap: 4px; }
+  .bottom .tag { font-size: 10px; }
+  .bottom .heading { font-size: 14px; }
 }
       `}</style>
 
@@ -306,7 +313,7 @@ export default function Home() {
           <div className="kicker">Gemini API Wrapper</div>
           <h1 className="title">Simple.<br />Powerful.</h1>
           <p className="subtitle">
-            Gemini API를 쉽고 빠르게. 간결한 인터페이스로 AI의 가능성을 경험하세요.
+            Gemini API를 쉽고 빠르게. 간결한 AI 인터페이스.
           </p>
         </div>
       </main>

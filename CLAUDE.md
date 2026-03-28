@@ -55,6 +55,13 @@ Next.js 16 + React 19 SaaS 앱. Google Gemini API를 래핑하여 인증, 구독
 - `AuthProvider`: 인증 상태 (user, loading) — `supabase.auth.getUser()` + `onAuthStateChange`
 - `SubscriptionProvider`: 구독/사용량 상태 — `/api/subscription` + `/api/usage` fetch
 
+### Responsive Design
+
+- **랜딩 페이지** (`app/page.tsx`): 인라인 `<style>`에 `@media (max-width: 640px)` 미디어 쿼리로 모바일 대응
+- **채팅 페이지** (`app/chat/page.tsx`): 모바일에서 사이드바는 햄버거 버튼으로 슬라이드 오버레이 (`md:` 브레이크포인트 기준), 헤더 요소(브랜드명, 이메일) 모바일 숨김
+- **채팅 사이드바** (`app/chat/components/Sidebar.tsx`): 모바일 전용 브랜드+이메일 영역 포함, 부모가 너비 제어
+- **로그인/빌링/프라이싱**: Tailwind 반응형 유틸리티로 기본 대응 완료
+
 ### DB Tables (inferred)
 
 conversations, messages, profiles (암호화), subscriptions, usage (월별 카운트), user_activity_logs (IP 암호화)

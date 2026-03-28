@@ -23,11 +23,20 @@ export default function Sidebar({
   onSelect,
   onNewChat,
   onDelete,
-}: SidebarProps) {
+  userEmail,
+}: SidebarProps & { userEmail?: string }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
-    <aside className="w-80 flex-shrink-0 flex flex-col bg-[#1e1f20]">
+    <aside className="w-full h-full flex-shrink-0 flex flex-col bg-[#1e1f20]">
+      {/* 모바일 전용: 브랜드 + 이메일 */}
+      <div className="md:hidden px-4 pt-4 pb-3 border-b border-[#383a3e]">
+        <span className="text-xs tracking-[0.06em] uppercase text-[#a1a1aa]">Gemini Wrapper</span>
+        {userEmail && (
+          <p className="text-xs text-[#71717a] mt-1 truncate">{userEmail}</p>
+        )}
+      </div>
+
       {/* 새 대화 버튼 */}
       <div className="p-3">
         <button
