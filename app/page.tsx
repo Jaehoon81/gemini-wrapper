@@ -315,10 +315,6 @@ export default function Home() {
       <section className="bottom">
         <div className="tag">Why Gemini Wrapper</div>
         <div className="heading">가볍고, 빠르고, 직관적인 AI 인터페이스</div>
-        <p className="desc">
-          복잡한 설정 없이 Gemini의 모든 기능을 활용하세요.
-          대화, 분석, 생성 — 하나의 깔끔한 화면에서.
-        </p>
       </section>
     </section>
   );

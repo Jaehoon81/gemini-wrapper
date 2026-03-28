@@ -137,7 +137,7 @@ export default function PricingPage() {
                 key={plan.key}
                 className={`relative rounded-2xl border p-6 transition-all duration-300 flex flex-col ${
                   plan.highlighted
-                    ? "border-white/15 bg-white/[0.03] scale-[1.02] shadow-xl"
+                    ? "border-white/15 bg-white/[0.03] shadow-xl"
                     : "border-[#27272a] hover:border-white/10"
                 }`}
               >
